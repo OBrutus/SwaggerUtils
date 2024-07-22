@@ -1,25 +1,56 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"io"
+	"log"
+	"net/http"
+	"os"
 )
 
-//TIP To run your code, right-click the code and select <b>Run</b>. Alternatively, click
-// the <icon src="AllIcons.Actions.Execute"/> icon in the gutter and select the <b>Run</b> menu item from here.
+const PrintPath = false
 
 func main() {
-	//TIP Press <shortcut actionId="ShowIntentionActions"/> when your caret is at the underlined or highlighted text
-	// to see how GoLand suggests fixing it.
-	s := "gopher"
-	fmt.Println("Hello and welcome, %s!", s)
+	fmt.Print("Enter the swagger endpoint URL for getting count: ")
+	var swaggerUrl string
+	fmt.Scanln(&swaggerUrl)
 
-	for i := 1; i <= 5; i++ {
-		//TIP You can try debugging your code. We have set one <icon src="AllIcons.Debugger.Db_set_breakpoint"/> breakpoint
-		// for you, but you can always add more by pressing <shortcut actionId="ToggleLineBreakpoint"/>. To start your debugging session,
-		// right-click your code in the editor and select the <b>Debug</b> option.
-		fmt.Println("i =", 100/i)
+	resp, err := http.Get(swaggerUrl)
+	if err != nil {
+		log.Fatalln(err)
 	}
+
+	//We Read the response body on the line below.
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	var keyValue map[string]interface{}
+	err = json.Unmarshal(body, &keyValue)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	if keyValue["paths"] == nil {
+		log.Fatalln("Invalid swagger endpoint")
+		os.Exit(404)
+	}
+
+	pathMap := keyValue["paths"].(map[string]interface{})
+
+	if PrintPath {
+		printPath(pathMap)
+	}
+
+	// Only endpoints are counted here, irrespective of the methods, like GET, POST, etc
+	length := len(keyValue["paths"].(map[string]interface{}))
+	fmt.Println("length = ", length)
 }
 
-//TIP See GoLand help at <a href="https://www.jetbrains.com/help/go/">jetbrains.com/help/go/</a>.
-// Also, you can try interactive lessons for GoLand by selecting 'Help | Learn IDE Features' from the main menu.
+func printPath(pathMap map[string]interface{}) {
+	for k, v := range pathMap {
+		fmt.Printf("%s: %s \n", k, v)
+	}
+}
